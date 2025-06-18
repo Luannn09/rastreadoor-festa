@@ -83,7 +83,7 @@
     <button onclick="iniciar()">Entrar</button>
   </div>  <div id="interface">
     <button onclick="sair()">Sair</button>
-    <select id="amigo" onchange="atualizarSeta()">
+    <select id="amigo">
       <option value="">-- Escolha um amigo --</option>
     </select>
     <ul id="lista"></ul>
@@ -105,6 +105,7 @@
     const raioMax = 3000;
     let usuariosDados = {};
     const cores = {};
+    let amigoSelecionado = "";
 
     function gerarCorAleatoria() {
       return '#' + Math.floor(Math.random() * 16777215).toString(16);
@@ -132,7 +133,9 @@
         const dados = snap.val() || {};
         usuariosDados = {};
         const listaEl = document.getElementById('lista'); listaEl.innerHTML = '';
-        const sel = document.getElementById('amigo'); sel.innerHTML = '<option value="">-- Escolha um amigo --</option>';
+        const sel = document.getElementById('amigo');
+        const selecionado = sel.value;
+        sel.innerHTML = '<option value="">-- Escolha um amigo --</option>';
         for (let id in dados) {
           if (id === usuario) continue;
           const u = dados[id];
@@ -146,9 +149,15 @@
             const opt = document.createElement('option');
             opt.value = id;
             opt.textContent = `${u.nome || id} (${Math.round(d)} m)`;
+            if (id === selecionado) opt.selected = true;
             sel.appendChild(opt);
           }
         }
+        atualizarSeta();
+      });
+
+      document.getElementById('amigo').addEventListener('change', e => {
+        amigoSelecionado = e.target.value;
         atualizarSeta();
       });
     }
@@ -160,14 +169,13 @@
     }
 
     function atualizarSeta() {
-      const amigoId = document.getElementById('amigo').value;
       const seta = document.getElementById('seta');
-      if (amigoId && minhaPos && usuariosDados[amigoId]) {
-        const ang = bearing(minhaPos, usuariosDados[amigoId]);
-        seta.style.transform = `rotate(${ang}deg)`;
-      } else {
+      if (!amigoSelecionado || !usuariosDados[amigoSelecionado] || !minhaPos) {
         seta.style.transform = 'rotate(0deg)';
+        return;
       }
+      const ang = bearing(minhaPos, usuariosDados[amigoSelecionado]);
+      seta.style.transform = `rotate(${ang}deg)`;
     }
 
     function toRad(v) { return v * Math.PI / 180; }
