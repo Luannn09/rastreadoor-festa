@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <title>Rastreador de Amigos</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
   <style>
     * {
       box-sizing: border-box;
@@ -21,13 +22,14 @@
       justify-content: flex-start;
     }
     #formulario, #interface {
-      width: 90%;
-      max-width: 400px;
-      margin-top: 40px;
+      width: 100%;
+      max-width: 600px;
+      margin-top: 20px;
       display: flex;
       flex-direction: column;
       align-items: stretch;
       gap: 10px;
+      padding: 0 10px;
     }
     #interface {
       display: none;
@@ -74,6 +76,13 @@
       border-right: 20px solid transparent;
       border-bottom: 40px solid #FFD700;
       transform: rotate(0deg);
+      transition: transform 0.3s ease;
+    }
+    #mapa {
+      height: 50vh;
+      width: 100%;
+      border-radius: 10px;
+      margin-top: 10px;
     }
   </style>
 </head>
@@ -88,7 +97,8 @@
     </select>
     <ul id="lista"></ul>
     <div id="seta"></div>
-  </div>  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>  <script>
+    <div id="mapa"></div>
+  </div>  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>  <script>
     const firebaseConfig = {
       apiKey: "AIzaSyAO0izXY6DJm_e6dcyAOwlnuImg31okxBE",
       authDomain: "festa-rastreio-20.firebaseapp.com",
@@ -107,6 +117,8 @@
     const cores = {};
     let amigoSelecionado = "";
 
+    let mapa, marcadorUsuario, marcadorAmigo;
+
     function gerarCorAleatoria() {
       return '#' + Math.floor(Math.random() * 16777215).toString(16);
     }
@@ -117,10 +129,20 @@
       document.getElementById('formulario').style.display = 'none';
       document.getElementById('interface').style.display = 'flex';
 
+      mapa = L.map('mapa').setView([0, 0], 17);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19
+      }).addTo(mapa);
+
+      marcadorUsuario = L.marker([0, 0]).addTo(mapa).bindPopup('Você');
+      marcadorAmigo = L.marker([0, 0]).addTo(mapa).bindPopup('Amigo');
+
       if (navigator.geolocation) {
         navigator.geolocation.watchPosition(pos => {
           minhaPos = { lat: pos.coords.latitude, lng: pos.coords.longitude };
           db.ref('usuarios/' + usuario).set({ lat: minhaPos.lat, lng: minhaPos.lng });
+          marcadorUsuario.setLatLng(minhaPos);
+          mapa.setView(minhaPos);
           atualizarSeta();
         }, err => alert('Erro ao obter localização: ' + err.message), {
           enableHighAccuracy: true,
@@ -172,10 +194,13 @@
       const seta = document.getElementById('seta');
       if (!amigoSelecionado || !usuariosDados[amigoSelecionado] || !minhaPos) {
         seta.style.transform = 'rotate(0deg)';
+        marcadorAmigo.setLatLng([0, 0]);
         return;
       }
-      const ang = bearing(minhaPos, usuariosDados[amigoSelecionado]);
+      const amigoPos = usuariosDados[amigoSelecionado];
+      const ang = bearing(minhaPos, amigoPos);
       seta.style.transform = `rotate(${ang}deg)`;
+      marcadorAmigo.setLatLng([amigoPos.lat, amigoPos.lng]).bindPopup(amigoSelecionado);
     }
 
     function toRad(v) { return v * Math.PI / 180; }
