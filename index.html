@@ -1,0 +1,86 @@
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Rastreador de Amigos</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <style>
+    body, html { margin: 0; height: 100%; }
+    #map { height: 100vh; width: 100vw; }
+    #formulario {
+      position: absolute;
+      top: 10px; left: 10px;
+      background: white;
+      padding: 10px;
+      border-radius: 8px;
+      z-index: 1000;
+    }
+  </style>
+</head>
+<body>
+  <div id="formulario">
+    <input type="text" id="nome" placeholder="Seu nome">
+    <button onclick="iniciar()">Entrar</button>
+  </div>
+  <div id="map"></div>
+
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
+
+  <!-- Leaflet -->
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyAO0izXY6DJm_e6dcyAOwlnuImg31okxBE",
+      authDomain: "festa-rastreio-20.firebaseapp.com",
+      databaseURL: "https://festa-rastreio-20-default-rtdb.firebaseio.com",
+      projectId: "festa-rastreio-20",
+      storageBucket: "festa-rastreio-20.firebasestorage.app",
+      messagingSenderId: "811662076993",
+      appId: "1:811662076993:android:eafe8cccce3242e9852ac0"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    let mapa, usuario = "", marcadores = {};
+
+    function iniciar() {
+      usuario = document.getElementById("nome").value.trim();
+      if (!usuario) return alert("Digite seu nome!");
+      document.getElementById("formulario").style.display = "none";
+
+      mapa = L.map('map').setView([-15.7939, -47.8828], 17);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: 'Mapa por OpenStreetMap',
+      }).addTo(mapa);
+
+      if (navigator.geolocation) {
+        navigator.geolocation.watchPosition(pos => {
+          const lat = pos.coords.latitude;
+          const lng = pos.coords.longitude;
+          db.ref("usuarios/" + usuario).set({ nome: usuario, lat, lng });
+        });
+      } else {
+        alert("Seu navegador não suporta localização.");
+      }
+
+      db.ref("usuarios").on("value", snapshot => {
+        const dados = snapshot.val();
+        for (let id in dados) {
+          const u = dados[id];
+          if (!marcadores[id]) {
+            marcadores[id] = L.marker([u.lat, u.lng]).addTo(mapa).bindPopup(u.nome);
+          } else {
+            marcadores[id].setLatLng([u.lat, u.lng]);
+          }
+        }
+      });
+    }
+  </script>
+</body>
+</html>
