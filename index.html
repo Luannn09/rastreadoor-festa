@@ -1,26 +1,24 @@
+
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
-  <title>Rastreador de Amigos</title>
+  <title>Rastreador de Amigos - Festa</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
   <style>
     body, html {
       margin: 0;
       height: 100%;
       font-family: sans-serif;
-    }
-    #map {
-      height: 100vh;
-      width: 100vw;
+      background: radial-gradient(circle, #1a1a1a 0%, #000 100%);
+      color: white;
+      overflow: hidden;
     }
     #formulario, #botoes, #buscador {
       position: absolute;
-      background: white;
+      background: rgba(0, 0, 0, 0.8);
       padding: 12px;
       border-radius: 8px;
-      box-shadow: 0 0 10px rgba(0,0,0,0.2);
       z-index: 1000;
     }
     #formulario {
@@ -45,6 +43,34 @@
       width: 100%;
       font-size: 16px;
     }
+    #radar {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 90vmin;
+      height: 90vmin;
+      border: 2px solid #44ff44;
+      border-radius: 50%;
+      background: rgba(0,255,0,0.05);
+      z-index: 0;
+    }
+    .ponto {
+      position: absolute;
+      width: 14px;
+      height: 14px;
+      background-color: red;
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 1;
+    }
+    .distancia {
+      position: absolute;
+      font-size: 12px;
+      color: #0f0;
+      transform: translate(-50%, -50%);
+      z-index: 2;
+    }
     #seta {
       position: absolute;
       bottom: 30px;
@@ -53,6 +79,27 @@
       font-size: 40px;
       display: none;
       z-index: 1002;
+    }
+    #distanciaInfo {
+      position: absolute;
+      bottom: 80px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 18px;
+      background: rgba(0, 0, 0, 0.7);
+      padding: 8px 12px;
+      border-radius: 8px;
+      display: none;
+      z-index: 1001;
+      color: white;
+    }
+    #marca {
+      position: absolute;
+      bottom: 10px;
+      right: 10px;
+      font-size: 12px;
+      color: rgba(255,255,255,0.4);
+      z-index: 999;
     }
   </style>
 </head>
@@ -63,7 +110,6 @@
   </div>
 
   <div id="botoes">
-    <button onclick="centralizarMapa()">Centralizar Amigos</button>
     <button onclick="abrirSelecaoAmigo()">Encontrar Amigo</button>
     <button onclick="sair()">Sair</button>
   </div>
@@ -73,15 +119,14 @@
     <button onclick="confirmarAmigo()">Localizar</button>
   </div>
 
-  <div id="map"></div>
-  <div id="seta">🧭</div>
+  <div id="radar"></div>
+  <div id="seta">➡️</div>
+  <div id="distanciaInfo"></div>
+  <div id="marca">Criador: Kelvin</div>
 
   <!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
-
-  <!-- Leaflet -->
-  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
   <script>
     const firebaseConfig = {
@@ -97,9 +142,9 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    let mapa, usuario = "", marcadores = {}, posicaoAtual = null;
+    let usuario = "", posicaoAtual = null;
     let amigoAlvo = null;
-    const cores = ["red", "blue", "green", "orange", "purple", "brown", "pink"];
+    const marcadores = {};
 
     function iniciar() {
       const nomeInput = document.getElementById("nome").value.trim();
@@ -108,11 +153,6 @@
 
       document.getElementById("formulario").style.display = "none";
       document.getElementById("botoes").style.display = "flex";
-
-      mapa = L.map('map').setView([-15.7939, -47.8828], 17);
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: 'Mapa por OpenStreetMap',
-      }).addTo(mapa);
 
       if (navigator.geolocation) {
         navigator.geolocation.watchPosition(
@@ -137,69 +177,60 @@
       db.ref("usuarios").on("value", snapshot => {
         const dados = snapshot.val() || {};
         const agora = Date.now();
-        const bounds = [];
+
+        document.querySelectorAll(".ponto, .distancia").forEach(e => e.remove());
 
         for (let id in dados) {
           const u = dados[id];
-
           if (agora - (u.timestamp || 0) > 120000) {
             db.ref("usuarios/" + id).remove();
-            if (marcadores[id]) {
-              mapa.removeLayer(marcadores[id]);
-              delete marcadores[id];
-            }
             continue;
           }
 
-          const cor = cores[id.length % cores.length];
-          const icon = L.divIcon({
-            className: 'custom-div-icon',
-            html: `<div style="background-color:${cor}; width:20px; height:20px; border-radius:50%"></div>`,
-            iconSize: [20, 20],
-            iconAnchor: [10, 10]
-          });
+          if (id === usuario || !posicaoAtual) continue;
 
-          if (!marcadores[id]) {
-            marcadores[id] = L.marker([u.lat, u.lng], { icon }).addTo(mapa).bindPopup(u.nome);
-          } else {
-            marcadores[id].setLatLng([u.lat, u.lng]);
-          }
+          const distanciaKm = getDistanciaKm(posicaoAtual.lat, posicaoAtual.lng, u.lat, u.lng);
+          if (distanciaKm > 3) continue;
 
-          bounds.push([u.lat, u.lng]);
+          const angulo = Math.random() * 2 * Math.PI;
+          const raio = Math.random() * 40 + 30;
+          const x = 45 + raio * Math.cos(angulo);
+          const y = 45 + raio * Math.sin(angulo);
+
+          const ponto = document.createElement("div");
+          ponto.className = "ponto";
+          ponto.style.left = x + "%";
+          ponto.style.top = y + "%";
+          ponto.title = u.nome;
+          document.body.appendChild(ponto);
+
+          const texto = document.createElement("div");
+          texto.className = "distancia";
+          texto.style.left = x + "%";
+          texto.style.top = (y + 2) + "%";
+          texto.innerText = `Distância de ${usuario} para ${u.nome}: ${(distanciaKm * 1000).toFixed(0)} m`;
+          document.body.appendChild(texto);
+
+          marcadores[id] = { lat: u.lat, lng: u.lng, nome: u.nome };
         }
       });
-    }
-
-    function centralizarMapa() {
-      const todos = Object.values(marcadores).map(m => m.getLatLng());
-      if (todos.length) {
-        const group = new L.featureGroup(Object.values(marcadores));
-        mapa.fitBounds(group.getBounds().pad(0.2));
-      }
-    }
-
-    function sair() {
-      if (usuario) {
-        db.ref("usuarios/" + usuario).remove();
-        location.reload();
-      }
     }
 
     function abrirSelecaoAmigo() {
       const select = document.getElementById("listaAmigos");
       select.innerHTML = "";
 
-      Object.keys(marcadores).forEach(nome => {
+      for (let nome in marcadores) {
         if (nome !== usuario) {
           const opt = document.createElement("option");
           opt.value = nome;
           opt.innerText = nome;
           select.appendChild(opt);
         }
-      });
+      }
 
       if (select.length === 0) {
-        alert("Nenhum amigo disponível agora.");
+        alert("Nenhum amigo disponível.");
         return;
       }
 
@@ -211,32 +242,14 @@
       amigoAlvo = escolhido;
       document.getElementById("buscador").style.display = "none";
       document.getElementById("seta").style.display = "block";
+      document.getElementById("distanciaInfo").style.display = "block";
     }
 
-    window.addEventListener("deviceorientationabsolute", atualizarSeta, true);
-    window.addEventListener("deviceorientation", atualizarSeta, true);
-
-    function atualizarSeta(e) {
-      if (!amigoAlvo || !marcadores[amigoAlvo] || !posicaoAtual) return;
-
-      const amigoLatLng = marcadores[amigoAlvo].getLatLng();
-      const minhaLatLng = posicaoAtual;
-
-      const angleToFriend = getAngle(minhaLatLng.lat, minhaLatLng.lng, amigoLatLng.lat, amigoLatLng.lng);
-      const deviceDirection = e.alpha || 0;
-
-      const ajuste = angleToFriend - deviceDirection;
-      document.getElementById("seta").style.transform = `translateX(-50%) rotate(${ajuste}deg)`;
+    function sair() {
+      if (usuario) {
+        db.ref("usuarios/" + usuario).remove();
+        location.reload();
+      }
     }
 
-    function getAngle(lat1, lon1, lat2, lon2) {
-      const dLon = (lon2 - lon1);
-      const y = Math.sin(dLon * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180);
-      const x = Math.cos(lat1 * Math.PI / 180) * Math.sin(lat2 * Math.PI / 180) -
-                Math.sin(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.cos(dLon * Math.PI / 180);
-      const brng = Math.atan2(y, x) * 180 / Math.PI;
-      return (brng + 360) % 360;
-    }
-  </script>
-</body>
-</html>
+    window.addEventListener("deviceorientation", atualizarSeta
