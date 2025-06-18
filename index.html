@@ -5,11 +5,26 @@
   <title>Rastreador de Amigos</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <style>
-    body, html { margin: 0; padding: 0; font-family: sans-serif; }
-    #formulario, #interface { padding: 20px; }
-    #interface { display: none; }
-    #lista { list-style: none; padding: 0; }
-    #lista li { margin: 5px 0; }
+    body, html {
+      margin: 0;
+      padding: 0;
+      font-family: sans-serif;
+      background: linear-gradient(135deg, #3f87a6, #ebf8e1);
+      height: 100vh;
+    }
+    #formulario, #interface {
+      padding: 20px;
+    }
+    #interface {
+      display: none;
+    }
+    #lista {
+      list-style: none;
+      padding: 0;
+    }
+    #lista li {
+      margin: 5px 0;
+    }
     #seta {
       width: 0;
       height: 0;
@@ -18,10 +33,27 @@
       border-right: 20px solid transparent;
       border-bottom: 40px solid #333;
       transform: rotate(0deg);
-      transition: transform 0.5s ease;
     }
-    button { margin-right: 10px; padding: 8px 12px; border: none; border-radius: 4px; background: #333; color: #fff; cursor: pointer; }
-    select { padding: 8px; border-radius: 4px; }
+    .ponto {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      display: inline-block;
+      margin-right: 8px;
+    }
+    button {
+      margin-right: 10px;
+      padding: 8px 12px;
+      border: none;
+      border-radius: 4px;
+      background: #333;
+      color: #fff;
+      cursor: pointer;
+    }
+    select {
+      padding: 8px;
+      border-radius: 4px;
+    }
   </style>
 </head>
 <body>
@@ -51,6 +83,11 @@
     let usuario = "", minhaPos;
     const raioMax = 3000; // 3 km
     let usuariosDados = {};
+    const cores = {};
+
+    function gerarCorAleatoria() {
+      return '#' + Math.floor(Math.random()*16777215).toString(16);
+    }
 
     function iniciar() {
       usuario = document.getElementById('nome').value.trim();
@@ -62,7 +99,12 @@
         navigator.geolocation.watchPosition(pos => {
           minhaPos = { lat: pos.coords.latitude, lng: pos.coords.longitude };
           db.ref('usuarios/' + usuario).set({ lat: minhaPos.lat, lng: minhaPos.lng });
-        }, err => alert('Erro ao obter localização: ' + err.message));
+          atualizarSeta();
+        }, err => alert('Erro ao obter localização: ' + err.message), {
+          enableHighAccuracy: true,
+          maximumAge: 0,
+          timeout: 10000
+        });
       } else alert('Seu navegador não suporta geolocalização.');
 
       db.ref('usuarios').on('value', snap => {
@@ -76,9 +118,10 @@
           const d = distancia(minhaPos, u);
           if (d <= raioMax) {
             usuariosDados[id] = u;
-            // atualizar lista e select
+            if (!cores[id]) cores[id] = gerarCorAleatoria();
             const li = document.createElement('li');
-            li.textContent = `${u.nome || id}: ${Math.round(d)} m`;
+            const ponto = `<span class="ponto" style="background:${cores[id]}"></span>`;
+            li.innerHTML = `${ponto}${u.nome || id}: ${Math.round(d)} m`;
             listaEl.appendChild(li);
             const opt = document.createElement('option'); opt.value = id;
             opt.textContent = `${u.nome || id} (${Math.round(d)} m)`;
