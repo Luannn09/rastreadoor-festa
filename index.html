@@ -5,18 +5,47 @@
   <title>Rastreador de Amigos</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <style>
+    * {
+      box-sizing: border-box;
+    }
     body, html {
       margin: 0;
       padding: 0;
       font-family: sans-serif;
-      background: linear-gradient(135deg, #3f87a6, #ebf8e1);
+      background: linear-gradient(145deg, #191414, #2b2b2b);
+      color: #fff;
       height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
     }
     #formulario, #interface {
-      padding: 20px;
+      width: 90%;
+      max-width: 400px;
+      margin-top: 40px;
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      gap: 10px;
     }
     #interface {
       display: none;
+    }
+    input, select, button {
+      padding: 12px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+      font-size: 16px;
+    }
+    button {
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #45a049;
     }
     #lista {
       list-style: none;
@@ -24,37 +53,27 @@
     }
     #lista li {
       margin: 5px 0;
-    }
-    #seta {
-      width: 0;
-      height: 0;
-      margin: 20px auto;
-      border-left: 20px solid transparent;
-      border-right: 20px solid transparent;
-      border-bottom: 40px solid #333;
-      transform: rotate(0deg);
+      background: #333;
+      padding: 10px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
     }
     .ponto {
       width: 12px;
       height: 12px;
       border-radius: 50%;
+      margin-right: 10px;
       display: inline-block;
-      margin-right: 8px;
     }
-    button {
-      margin: 10px 5px;
-      padding: 10px 16px;
-      border: none;
-      border-radius: 4px;
-      background: #333;
-      color: #fff;
-      cursor: pointer;
-      font-size: 16px;
-    }
-    select {
-      padding: 8px;
-      border-radius: 4px;
-      font-size: 16px;
+    #seta {
+      width: 0;
+      height: 0;
+      margin: 30px auto;
+      border-left: 20px solid transparent;
+      border-right: 20px solid transparent;
+      border-bottom: 40px solid #FFD700;
+      transform: rotate(0deg);
     }
   </style>
 </head>
@@ -69,7 +88,7 @@
     </select>
     <ul id="lista"></ul>
     <div id="seta"></div>
-  </div>  <!-- Firebase -->  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>  <script>
+  </div>  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>  <script>
     const firebaseConfig = {
       apiKey: "AIzaSyAO0izXY6DJm_e6dcyAOwlnuImg31okxBE",
       authDomain: "festa-rastreio-20.firebaseapp.com",
@@ -83,19 +102,19 @@
     const db = firebase.database();
 
     let usuario = "", minhaPos;
-    const raioMax = 3000; // 3 km
+    const raioMax = 3000;
     let usuariosDados = {};
     const cores = {};
 
     function gerarCorAleatoria() {
-      return '#' + Math.floor(Math.random()*16777215).toString(16);
+      return '#' + Math.floor(Math.random() * 16777215).toString(16);
     }
 
     function iniciar() {
       usuario = document.getElementById('nome').value.trim();
       if (!usuario) return alert('Digite seu nome!');
       document.getElementById('formulario').style.display = 'none';
-      document.getElementById('interface').style.display = 'block';
+      document.getElementById('interface').style.display = 'flex';
 
       if (navigator.geolocation) {
         navigator.geolocation.watchPosition(pos => {
@@ -122,8 +141,7 @@
             usuariosDados[id] = u;
             if (!cores[id]) cores[id] = gerarCorAleatoria();
             const li = document.createElement('li');
-            const ponto = `<span class="ponto" style="background:${cores[id]}"></span>`;
-            li.innerHTML = `${ponto}${u.nome || id}: ${Math.round(d)} m`;
+            li.innerHTML = `<span class="ponto" style="background:${cores[id]}"></span>${u.nome || id}: ${Math.round(d)} m`;
             listaEl.appendChild(li);
             const opt = document.createElement('option');
             opt.value = id;
@@ -152,7 +170,6 @@
       }
     }
 
-    // Funções utilitárias
     function toRad(v) { return v * Math.PI / 180; }
     function toDeg(v) { return v * 180 / Math.PI; }
 
